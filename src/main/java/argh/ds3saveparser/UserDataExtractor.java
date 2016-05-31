@@ -1,6 +1,5 @@
 package argh.ds3saveparser;
 
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -8,8 +7,6 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -18,6 +15,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * SL2 file represents filesystem (or complex archive).
@@ -42,7 +41,7 @@ public class UserDataExtractor {
         this.sl2file = new BufferedInputStream(sl2file);
     }
 
-    public void extract() {
+    public List<UserData> extract() {
         try {
             //ReadableByteChannel channel = Channels.newChannel(sl2file);
             //Reader reader = Channels.newReader(channel, "UTF-8");
@@ -90,15 +89,12 @@ public class UserDataExtractor {
             sl2file.reset();
             sl2file.skip(userDataNameOffset);
             //23
-            buffer = new byte[23];
+            buffer = new byte[24];
             sl2file.read(buffer);
-            String name = new String(buffer, StandardCharsets.US_ASCII);
+            String name = new String(buffer, StandardCharsets.UTF_16LE);
             System.out.println(name);
             sl2file.reset();
             sl2file.skip(userDataOffset);
-
-            //BinaryReader reader = new BinaryReader(inputStream, Encoding.ASCII, true);
-            String key = "FD464D695E69A39A10E319A7ACE8B7FA";
 
             byte[] iv = new byte[16];
             sl2file.read(iv);
@@ -110,14 +106,13 @@ public class UserDataExtractor {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-
-            File file = new File("out");
-            file.setWritable(true);
-            FileOutputStream fos = new FileOutputStream(file);
-            fos.write(decrypted);
+            UserData ud = new UserData(decrypted, name);
+            UserData[] userDatas = {ud};
+            return Arrays.asList(userDatas);
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return null;
     }
 
     private static int getInt32(InputStream stream) throws IOException {
@@ -128,17 +123,15 @@ public class UserDataExtractor {
     }
 
     /**
-     * AES
+     * AES CBC 128
      */
     private static byte[] decrypt(byte[] encrypted, byte[] ivbytes) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        IvParameterSpec iv = new IvParameterSpec(ivbytes);
-        SecretKeySpec skeySpec = new SecretKeySpec(USER_DATA_SECRET_KEY, "AES");
+        IvParameterSpec ivSpec = new IvParameterSpec(ivbytes);
+        SecretKeySpec secretKeySpec = new SecretKeySpec(USER_DATA_SECRET_KEY, "AES");
 
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
-        cipher.init(Cipher.DECRYPT_MODE, skeySpec, iv);
+        cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivSpec);
 
-        byte[] decrypted = cipher.doFinal(encrypted);
-        return decrypted;
-
+        return cipher.doFinal(encrypted);
     }
 }
