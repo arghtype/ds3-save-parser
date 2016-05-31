@@ -1,22 +1,42 @@
 package argh.ds3saveparser;
 
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
 /**
- * SL2 file represents filesystem (or complex archive). Several USER DATA items could be extracted from it.
+ * SL2 file represents filesystem (or complex archive).
+ * Several USER DATA items could be extracted from it.
  *
  * @author arghtype@gmail.com
  * @since 31.05.2016
  */
 public class UserDataExtractor {
     private static final String EXPECTED_HEADER = "BND4";
-    BufferedInputStream sl2file;
+    private static final byte[] USER_DATA_SECRET_KEY =
+            {
+                    (byte) 0xFD, 0x46, 0x4D, 0x69,
+                    0x5E, 0x69, (byte) 0xA3, (byte) 0x9A,
+                    0x10, (byte) 0xE3, 0x19, (byte) 0xA7,
+                    (byte) 0xAC, (byte) 0xE8, (byte) 0xB7, (byte) 0xFA
+            };
+
+    BufferedInputStream sl2file; //TODO Consider switching to Commons IO collections
 
     public UserDataExtractor(InputStream sl2file) {
         this.sl2file = new BufferedInputStream(sl2file);
@@ -37,7 +57,6 @@ public class UserDataExtractor {
             }
 
             System.out.println(header);
-            // ByteBuffer
             sl2file.skip(8);
             int userDataCount = getInt32(sl2file);
             System.out.println(userDataCount);
@@ -66,6 +85,7 @@ public class UserDataExtractor {
             int userDataNameOffset = getInt32(sl2file);
             System.out.println(userDataNameOffset);
             //for looping - sl2file.skip(8);
+
             //we don't need name
             sl2file.reset();
             sl2file.skip(userDataNameOffset);
@@ -77,15 +97,48 @@ public class UserDataExtractor {
             sl2file.reset();
             sl2file.skip(userDataOffset);
 
+            //BinaryReader reader = new BinaryReader(inputStream, Encoding.ASCII, true);
+            String key = "FD464D695E69A39A10E319A7ACE8B7FA";
+
+            byte[] iv = new byte[16];
+            sl2file.read(iv);
+            byte[] encrypted = new byte[userDataSize - 16];
+            sl2file.read(encrypted);
+            byte [] decrypted = null;
+            try {
+                decrypted = decrypt(encrypted, iv);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            File file = new File("out");
+            file.setWritable(true);
+            FileOutputStream fos = new FileOutputStream(file);
+            fos.write(decrypted);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static int getInt32(InputStream sl2file) throws IOException {
+    private static int getInt32(InputStream stream) throws IOException {
         byte[] buffer;
         buffer = new byte[4];
-        sl2file.read(buffer);
+        stream.read(buffer);
         return ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    }
+
+    /**
+     * AES
+     */
+    private static byte[] decrypt(byte[] encrypted, byte[] ivbytes) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+        IvParameterSpec iv = new IvParameterSpec(ivbytes);
+        SecretKeySpec skeySpec = new SecretKeySpec(USER_DATA_SECRET_KEY, "AES");
+
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+        cipher.init(Cipher.DECRYPT_MODE, skeySpec, iv);
+
+        byte[] decrypted = cipher.doFinal(encrypted);
+        return decrypted;
+
     }
 }
