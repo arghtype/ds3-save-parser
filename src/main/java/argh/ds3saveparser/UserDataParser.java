@@ -19,10 +19,10 @@ public class UserDataParser {
         StringTokenizer str = new StringTokenizer(x);
         int i = 0;
         while(str.hasMoreTokens()) {
-            String s = str.nextToken();
-            if (s.contains("ARGHA")) {
+            String token = str.nextToken();
+            if (token.contains("ARGHA")) {
                 System.out.println(i); //17 token
-                System.out.println(s);
+                System.out.println(token);
             }
             i++;
         }

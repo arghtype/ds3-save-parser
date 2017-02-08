@@ -1,24 +1,21 @@
 package argh.ds3saveparser;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.List;
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
+ * Extracts and decrypts UserData from
+ *
  * SL2 file represents filesystem (or complex archive).
  * Several USER DATA items could be extracted from it.
  *
@@ -43,46 +40,43 @@ public class UserDataExtractor {
 
     public List<UserData> extract() {
         try {
-            //ReadableByteChannel channel = Channels.newChannel(sl2file);
-            //Reader reader = Channels.newReader(channel, "UTF-8");
             sl2file.mark(Integer.MAX_VALUE);
 
             byte[] buffer = new byte[4];
             sl2file.read(buffer);
             String header = new String(buffer, StandardCharsets.UTF_8);
             //int userDataCount = ByteBuffer.wrap(buffer).getInt();
-            if (!EXPECTED_HEADER.equals(header)){
+            if (!EXPECTED_HEADER.equals(header)) {
                 throw new IllegalArgumentException("Incorrect file - BND4 header is expected!");
             }
 
-            System.out.println(header);
+            System.out.println("File Header is" + header);
             sl2file.skip(8);
             int userDataCount = getInt32(sl2file);
-            System.out.println(userDataCount);
+            System.out.println("User Data Count is " + userDataCount);
             sl2file.skip(8);
             buffer = new byte[8];
             sl2file.read(buffer);
             String version = new String(buffer, StandardCharsets.UTF_8);
-            System.out.println(version);
+            System.out.println("Version is " + version);
 
             int directoryEntrySize = getInt32(sl2file);
-            System.out.println(directoryEntrySize);
             sl2file.skip(4);
             int dataOffset = getInt32(sl2file);
-            System.out.println(dataOffset);
             sl2file.skip(20);
 
             //there should be loop, but let's start from 1 data file
             //TODO LOOP
+            System.out.println("Reading user data...");
             sl2file.skip(8);
             int userDataSize = getInt32(sl2file);
-            System.out.println(userDataSize);
+            System.out.println("User Data Size is " + userDataSize);
             sl2file.skip(4);
 
             int userDataOffset = getInt32(sl2file);
-            System.out.println(userDataOffset);
+            System.out.println("User Data Offset is " +  userDataOffset);
             int userDataNameOffset = getInt32(sl2file);
-            System.out.println(userDataNameOffset);
+            System.out.println("User Data Name Offset is " + userDataNameOffset);
             //for looping - sl2file.skip(8);
 
             //we don't need name
@@ -92,7 +86,7 @@ public class UserDataExtractor {
             buffer = new byte[24];
             sl2file.read(buffer);
             String name = new String(buffer, StandardCharsets.UTF_16LE);
-            System.out.println(name);
+            System.out.println("User Data Name is " + name);
             sl2file.reset();
             sl2file.skip(userDataOffset);
 
@@ -100,16 +94,12 @@ public class UserDataExtractor {
             sl2file.read(iv);
             byte[] encrypted = new byte[userDataSize - 16];
             sl2file.read(encrypted);
-            byte [] decrypted = null;
-            try {
-                decrypted = decrypt(encrypted, iv);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            System.out.println("Decrypting user data...");
+            byte[] decrypted = decrypt(encrypted, iv);
             UserData ud = new UserData(decrypted, name);
             UserData[] userDatas = {ud};
             return Arrays.asList(userDatas);
-        } catch (IOException e) {
+        } catch (IOException | GeneralSecurityException e) {
             e.printStackTrace();
         }
         return null;
@@ -125,7 +115,7 @@ public class UserDataExtractor {
     /**
      * AES CBC 128
      */
-    private static byte[] decrypt(byte[] encrypted, byte[] ivbytes) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+    private static byte[] decrypt(byte[] encrypted, byte[] ivbytes) throws GeneralSecurityException {
         IvParameterSpec ivSpec = new IvParameterSpec(ivbytes);
         SecretKeySpec secretKeySpec = new SecretKeySpec(USER_DATA_SECRET_KEY, "AES");
 
