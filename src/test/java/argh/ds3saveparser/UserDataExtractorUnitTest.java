@@ -1,5 +1,8 @@
 package argh.ds3saveparser;
 
+import argh.ds3saveparser.extract.UserDataExtractor;
+import argh.ds3saveparser.model.UserData;
+import argh.ds3saveparser.process.UserDataParser;
 import org.junit.Test;
 
 import java.io.FileInputStream;

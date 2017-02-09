@@ -1,4 +1,4 @@
-package argh.ds3saveparser;
+package argh.ds3saveparser.model;
 
 import java.io.File;
 import java.io.FileOutputStream;

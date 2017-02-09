@@ -1,5 +1,6 @@
-package argh.ds3saveparser;
+package argh.ds3saveparser.process;
 
+import argh.ds3saveparser.model.UserData;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
