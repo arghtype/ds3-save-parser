@@ -9,7 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
  * @author arghtype@gmail.com
  * @since 2/9/2017 13:44
  */
-public class Decryptor {
+class DecryptUtil {
 
     private static final byte[] USER_DATA_SECRET_KEY =
             {

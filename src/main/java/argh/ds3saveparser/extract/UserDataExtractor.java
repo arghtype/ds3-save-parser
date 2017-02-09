@@ -42,7 +42,7 @@ public class UserDataExtractor {
                 throw new IllegalArgumentException("Incorrect file - BND4 header is expected!");
             }
 
-            System.out.println("File Header is" + header);
+            System.out.println("File Header is " + header);
             sl2file.skip(8);
             int userDataCount = getInt32(sl2file);
             System.out.println("User Data Count is " + userDataCount);
@@ -110,7 +110,7 @@ public class UserDataExtractor {
         byte[] encrypted = new byte[metadata.size - 16];
         sl2file.read(encrypted);
         System.out.println("Decrypting user data...");
-        byte[] decrypted = Decryptor.decrypt(encrypted, iv);
+        byte[] decrypted = DecryptUtil.decrypt(encrypted, iv);
         return new UserData(decrypted, name);
     }
 
